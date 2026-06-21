@@ -1,36 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# minimax-music-platform
 
-## Getting Started
+MiniMax 驱动的 **AI 音乐生成与聆听平台**（monorepo）。以 MiniMax API 为音频生成内核，提供创作端（简易/专业双模式）、消费端（聆听/榜单/社区）与运营后台。
 
-First, run the development server:
+> 工程实施依据：`20260617_202554__minimax-music-platform__full-platform-design-and-engineering-plan__plan.md`
+> 执行路线图：`06181210.md`
+> 执行假设记录：`docs/ASSUMPTIONS.md`
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 实施状态
+
+| Phase | 状态 | 说明 |
+|-------|------|------|
+| **P0 地基** | ✅ | monorepo / config / contracts / sdk-minimax / Prisma / docker-compose |
+| **P1 生成闭环** | ✅ | auth + 额度三段式 + generation 状态机 + Worker + realtime + assets + web v2 |
+| **P2 完整产品** | ✅ | 发布/审核/曲库/搜索/全局播放器/社交/计费/订阅/榜单/预设/音色/管理后台 |
+| **P3 测试** | ✅ | 合约测试 / 额度测试 / 状态机测试 |
+| **P4 合规/可观测** | ✅ | AI 标识全链路 / 文档 / 种子数据 |
+
+## 仓库结构（Monorepo · pnpm + Turborepo）
+
+```
+apps/
+  web/      Next.js App Router — 消费端 + 创作端
+  api/      NestJS — 鉴权/计费/额度/生成编排/曲库/榜单/审核/管理/定时任务
+  worker/   BullMQ Worker — 异步生成处理器
+packages/
+  config/       环境校验 (zod)
+  contracts/    DTO / zod / 错误码
+  sdk-minimax/  MiniMax 适配层 (music/lyrics/tts + 限速/重试/熔断)
+infra/          docker-compose (postgres / redis / minio)
+docs/           架构 / 假设 / 运行手册
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 本地启动
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# 1. 安装依赖（Node ≥20）
+corepack enable && pnpm install
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# 2. 起本地基础设施
+pnpm infra:up
 
-## Learn More
+# 3. 配置环境
+cp .env.example .env
+cp apps/web/.env.example apps/web/.env.local
 
-To learn more about Next.js, take a look at the following resources:
+# 4. 数据库迁移
+pnpm --filter @music/api db:migrate
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# 5. 开发
+pnpm dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## API 端点概览
 
-## Deploy on Vercel
+| 模块 | 端点 |
+|------|------|
+| auth | `POST /api/v1/auth/register` `login` `refresh` `logout` |
+| generation | `POST /api/v1/generation/jobs` `GET .../jobs/:id` |
+| assets | `GET /api/v1/assets` `GET .../assets/:id/play` |
+| tracks | `POST /api/v1/tracks/publish` `GET /api/v1/tracks` |
+| social | `POST /api/v1/tracks/:id/like` `POST /api/v1/users/:id/follow` |
+| billing | `GET /api/v1/plans` `POST /api/v1/subscription/create` |
+| charts | `GET /api/v1/charts/hot` `GET /api/v1/charts/new` |
+| admin | `GET /api/v1/admin/metrics` `POST /api/v1/admin/moderation/:id/review` |
+| health | `GET /api/v1/health` (DB/Redis/S3 live ping) |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 安全 / 合规
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- 第三方密钥仅后端，绝不进 `NEXT_PUBLIC_*`
+- AI 生成内容强制标识 (`Track.isAiGenerated`)
+- 生成失败必退额度（hold→commit/refund 三段式）
+- 音频走可过期签名 URL
+- 幂等：`Idempotency-Key` (generation) / `WebhookEvent.eventId` (payment)

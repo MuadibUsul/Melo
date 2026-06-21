@@ -1,0 +1,26 @@
+{
+  "name": "@music/worker",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo \"(worker) no lint\""
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1071.0",
+    "@aws-sdk/s3-request-presigner": "^3.1071.0",
+    "@music/config": "workspace:*",
+    "@music/contracts": "workspace:*",
+    "@music/sdk-minimax": "workspace:*",
+    "@prisma/client": "^6.1.0",
+    "bullmq": "^5.79.0",
+    "ioredis": "^5.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}
