@@ -6,7 +6,8 @@ import { io, Socket } from "socket.io-client";
 import type { JobUpdatedEvent, JobView } from "@music/contracts";
 import { api, getAccessToken } from "../client";
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1";
+const SOCKET_URL = API_BASE_URL.replace(/\/api\/v1\/?$/, "");
 
 export function useCreateJob() {
   const queryClient = useQueryClient();
@@ -22,28 +23,28 @@ export function useCreateJob() {
       const headers: Record<string, string> = {};
       if (input.idempotencyKey) headers["Idempotency-Key"] = input.idempotencyKey;
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1"}/generation/jobs`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${getAccessToken() ?? ""}`,
-            ...headers,
-          },
-          credentials: "include",
-          body: JSON.stringify(input),
+      const response = await fetch(`${API_BASE_URL}/generation/jobs`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getAccessToken() ?? ""}`,
+          ...headers,
         },
-      );
+        credentials: "include",
+        body: JSON.stringify(input),
+      });
+
       if (!response.ok) {
         const body = await response.json().catch(() => ({ message: "生成提交失败" }));
         throw new Error(body.message ?? "生成提交失败");
       }
+
       return response.json() as Promise<JobView & { isDuplicate: boolean }>;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
       queryClient.invalidateQueries({ queryKey: ["assets"] });
+      window.dispatchEvent(new Event("drafts-updated"));
     },
   });
 }

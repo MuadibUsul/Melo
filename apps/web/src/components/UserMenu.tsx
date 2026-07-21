@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronDown, LayoutDashboard, LibraryBig, LogIn, LogOut, Settings, User } from "lucide-react";
+import { ArrowRight, ChevronDown, LayoutDashboard, LibraryBig, LogIn, LogOut, Settings, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -34,60 +34,76 @@ export function UserMenu() {
 
   if (!auth.user) {
     return (
-      <Button asChild size="sm" variant="outline" className="hidden sm:inline-flex">
-        <Link href="/login">
-          <LogIn className="size-4" />
-          {"\u767b\u5f55"}
-        </Link>
-      </Button>
+      <div className="hidden items-center gap-2 sm:flex">
+        <Button asChild size="sm" variant="outline">
+          <Link href="/login">
+            <LogIn className="size-4" />
+            {"\u767b\u5f55"}
+          </Link>
+        </Button>
+        <Button asChild size="sm">
+          <Link href="/create">
+            {"\u6253\u5f00 App"}
+            <ArrowRight className="size-4" />
+          </Link>
+        </Button>
+      </div>
     );
   }
 
   const name = auth.user.displayName || auth.user.email?.split("@")[0] || "\u7528\u6237";
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button size="sm" variant="outline" className="gap-2">
-          <span className="flex size-5 items-center justify-center rounded-full bg-studio-gold/20 text-studio-gold">
-            <User className="size-3" />
-          </span>
-          <span className="hidden max-w-24 truncate sm:inline">{name}</span>
-          <ChevronDown className="size-3.5 opacity-60" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="flex flex-col gap-0.5">
-          <span className="text-sm font-medium text-foreground">{name}</span>
-          <span className="truncate text-xs font-normal text-muted-foreground">{auth.user.email}</span>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/account">
-            <Settings className="size-4" />
-            {"\u8d26\u53f7\u4e2d\u5fc3"}
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/library">
-            <LibraryBig className="size-4" />
-            {"\u6211\u7684\u66f2\u5e93"}
-          </Link>
-        </DropdownMenuItem>
-        {auth.user.role === "ADMIN" || auth.user.role === "SUPER_ADMIN" ? (
+    <div className="flex items-center gap-2">
+      <Button asChild size="sm" className="hidden sm:inline-flex">
+        <Link href="/studio">
+          {"\u6253\u5f00 App"}
+          <ArrowRight className="size-4" />
+        </Link>
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="sm" variant="outline" className="gap-2">
+            <span className="flex size-5 items-center justify-center rounded-full bg-studio-gold/20 text-studio-gold">
+              <User className="size-3" />
+            </span>
+            <span className="hidden max-w-24 truncate sm:inline">{name}</span>
+            <ChevronDown className="size-3.5 opacity-60" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuLabel className="flex flex-col gap-0.5">
+            <span className="text-sm font-medium text-foreground">{name}</span>
+            <span className="truncate text-xs font-normal text-muted-foreground">{auth.user.email}</span>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
-            <Link href="/admin">
-              <LayoutDashboard className="size-4" />
-              {"\u7ba1\u7406\u540e\u53f0"}
+            <Link href="/account">
+              <Settings className="size-4" />
+              {"\u8d26\u53f7\u4e2d\u5fc3"}
             </Link>
           </DropdownMenuItem>
-        ) : null}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" onSelect={signOut}>
-          <LogOut className="size-4" />
-          {"\u9000\u51fa\u767b\u5f55"}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <DropdownMenuItem asChild>
+            <Link href="/library">
+              <LibraryBig className="size-4" />
+              {"\u6211\u7684\u66f2\u5e93"}
+            </Link>
+          </DropdownMenuItem>
+          {auth.user.role === "ADMIN" || auth.user.role === "SUPER_ADMIN" ? (
+            <DropdownMenuItem asChild>
+              <Link href="/admin">
+                <LayoutDashboard className="size-4" />
+                {"\u7ba1\u7406\u540e\u53f0"}
+              </Link>
+            </DropdownMenuItem>
+          ) : null}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onSelect={signOut}>
+            <LogOut className="size-4" />
+            {"\u9000\u51fa\u767b\u5f55"}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }

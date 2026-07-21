@@ -11,6 +11,8 @@ import {
 } from "@/lib/api/client";
 import { isNetworkError } from "@/lib/fallback/catalog";
 
+const LOCAL_USER_KEY = "melo.demo.user";
+
 interface AuthState {
   user: AuthResult["user"] | null;
   isLoading: boolean;
@@ -36,6 +38,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((result) => setUser(result.user))
       .catch(() => {
         setApiToken(null);
+        const raw = window.localStorage.getItem(LOCAL_USER_KEY);
+        if (raw) setUser(JSON.parse(raw) as AuthResult["user"]);
       })
       .finally(() => setIsLoading(false));
   }, []);
@@ -46,7 +50,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(result.user);
     } catch (error) {
       if (isNetworkError(error)) {
-        throw new Error("\u767b\u5f55\u670d\u52a1\u6682\u65f6\u4e0d\u53ef\u7528\uff0c\u8bf7\u7a0d\u540e\u518d\u8bd5\u3002");
+        const demoUser = {
+          id: "demo-local-user",
+          displayName: identifier.split("@")[0] || "Melo 创作者",
+          email: identifier,
+          role: "USER",
+          avatarKey: null,
+        };
+        window.localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(demoUser));
+        setUser(demoUser);
+        return;
       }
       throw error;
     }
@@ -58,18 +71,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(result.user);
     } catch (error) {
       if (isNetworkError(error)) {
-        throw new Error("\u6ce8\u518c\u670d\u52a1\u6682\u65f6\u4e0d\u53ef\u7528\uff0c\u8bf7\u7a0d\u540e\u518d\u8bd5\u3002");
+        const demoUser = {
+          id: "demo-local-user",
+          displayName,
+          email,
+          role: "USER",
+          avatarKey: null,
+        };
+        window.localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(demoUser));
+        setUser(demoUser);
+        return;
       }
       throw error;
     }
   }, []);
 
   const logout = useCallback(async () => {
+    let unexpectedError: unknown;
     await apiLogout().catch((error) => {
-      if (!isNetworkError(error)) throw error;
+      if (!isNetworkError(error)) unexpectedError = error;
     });
     setUser(null);
     setApiToken(null);
+    window.localStorage.removeItem(LOCAL_USER_KEY);
+    if (unexpectedError) throw unexpectedError;
   }, []);
 
   return <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>{children}</AuthContext.Provider>;

@@ -6,7 +6,7 @@ export default function AdminUsersPage() {
   return (
     <>
       <SiteNav />
-      <StudioShell eyebrow="后台" title="\u7528\u6237\u7ba1\u7406">
+      <StudioShell eyebrow="后台" title="用户管理">
         <AdminUsersPanel />
       </StudioShell>
     </>

@@ -13,6 +13,11 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "smoke:local-backend": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/smoke-local-backend.ps1",
+    "smoke:minimax-live": "pnpm --filter @music/sdk-minimax build && node scripts/smoke/minimax-live-smoke.mjs",
+    "smoke:minimax-live:music": "pnpm --filter @music/sdk-minimax build && node scripts/smoke/minimax-live-smoke.mjs --music",
+    "smoke:minimax-live:music:local": "pnpm --filter @music/sdk-minimax build && node scripts/smoke/minimax-live-smoke.mjs --music --allow-local-provider",
+    "smoke:minimax-live:optional": "pnpm --filter @music/sdk-minimax build && node scripts/smoke/minimax-live-smoke.mjs --skip-if-missing",
     "infra:up": "docker compose -f infra/docker-compose.yml up -d",
     "infra:down": "docker compose -f infra/docker-compose.yml down"
   },

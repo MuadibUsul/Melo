@@ -3,9 +3,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { Clock, Loader2, Play, TrendingUp } from "lucide-react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { getChartWithFallback, getPlayableUrl, type CatalogTrack } from "@/lib/fallback/catalog";
 import { usePlayerStore, type PlayerTrack } from "@/lib/player/use-player-store";
-import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "./ErrorAlert";
 
 function toPlayerTrack(track: CatalogTrack, audioUrl: string): PlayerTrack {
@@ -75,7 +75,7 @@ export function ChartList({ type }: { type: "hot" | "new" }) {
             >
               <Play className="size-3" />
             </Button>
-            <div className="flex-1 truncate">
+            <div className="min-w-0 flex-1">
               <Link href={`/tracks/${track.id}`} className="truncate text-sm transition-colors hover:text-studio-gold">
                 {track.title}
               </Link>

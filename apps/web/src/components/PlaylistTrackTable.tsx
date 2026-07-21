@@ -50,7 +50,7 @@ export function PlaylistTrackTable({
     <section className="studio-surface rounded-lg p-5">
       <div className="mb-4 flex items-center justify-between gap-4">
         <div>
-          <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">曲目列表</div>
+          <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Track List</div>
           <div className="mt-2 text-lg font-semibold">{tracks.length} 首曲目</div>
         </div>
         <Button
@@ -97,9 +97,7 @@ export function PlaylistTrackTable({
               <div className="truncate text-xs text-muted-foreground">{track.artist}</div>
             </div>
 
-            <div className="hidden truncate text-sm text-muted-foreground md:block">
-              {track.genre || "未分类"}
-            </div>
+            <div className="hidden truncate text-sm text-muted-foreground md:block">{track.genre || "未分类"}</div>
 
             <div className="hidden text-sm text-muted-foreground md:block">
               {(track.playCount ?? 0).toLocaleString()}

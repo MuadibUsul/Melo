@@ -51,6 +51,37 @@ select {
 .bg-studio-gold\/20 { background-color: rgba(233, 200, 111, 0.20); }
 .accent-studio-gold { accent-color: var(--studio-gold); }
 
+.melo-rail-offset {
+  transition: padding-left 200ms ease;
+}
+
+.melo-mobile-dock-offset {
+  padding-bottom: 160px;
+}
+
+@media (min-width: 768px) {
+  .melo-rail-offset {
+    padding-left: 200px;
+  }
+
+  .melo-mobile-dock-offset {
+    padding-bottom: 0;
+  }
+
+  :root[data-melo-rail-collapsed="true"] .melo-rail-offset {
+    padding-left: 72px;
+  }
+
+  .melo-player-bar {
+    left: 200px;
+    transition: left 200ms ease;
+  }
+
+  :root[data-melo-rail-collapsed="true"] .melo-player-bar {
+    left: 72px;
+  }
+}
+
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }

@@ -46,9 +46,11 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     this.server.to(`user:${userId}`).emit("job.updated", event);
   }
 
-  /** Client can also subscribe manually. */
+  /** Client can also subscribe manually (must match handshake auth). */
   @SubscribeMessage("subscribe")
   handleSubscribe(client: Socket, payload: { userId: string }): void {
+    const authedUserId = client.handshake.auth?.userId as string | undefined;
+    if (!authedUserId || authedUserId !== payload.userId) return;
     void client.join(`user:${payload.userId}`);
   }
 }

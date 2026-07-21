@@ -56,6 +56,14 @@ export class StorageService implements OnModuleInit {
     });
   }
 
+  async getSignedUploadUrl(key: string, contentType: string, expiresInSeconds = 600): Promise<string> {
+    return getSignedUrl(
+      this.client,
+      new PutObjectCommand({ Bucket: this.bucket, Key: key, ContentType: contentType }),
+      { expiresIn: expiresInSeconds },
+    );
+  }
+
   async ping(): Promise<boolean> {
     try {
       await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));

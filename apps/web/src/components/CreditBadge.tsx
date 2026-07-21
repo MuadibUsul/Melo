@@ -6,6 +6,19 @@ import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/auth-context";
 
+const LOCAL_USER_KEY = "melo.demo.user";
+
+function readLocalCredits() {
+  try {
+    const raw = window.localStorage.getItem(LOCAL_USER_KEY);
+    if (!raw) return null;
+    const user = JSON.parse(raw) as { credits?: number };
+    return typeof user.credits === "number" ? user.credits : null;
+  } catch {
+    return null;
+  }
+}
+
 export function CreditBadge() {
   const { user } = useAuth();
   const [credits, setCredits] = useState<number | null>(null);
@@ -18,7 +31,7 @@ export function CreditBadge() {
         const result = await api.get<{ balance: number }>("/entitlement/balance");
         setCredits(result.balance);
       } catch {
-        setCredits(null);
+        setCredits(readLocalCredits());
       }
     }
 

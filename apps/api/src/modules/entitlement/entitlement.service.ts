@@ -1,12 +1,12 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { randomUUID } from "crypto";
+import type { Plan } from "@prisma/client";
 import { PrismaService } from "../../infra/prisma/prisma.service";
 import { RedisService } from "../../infra/redis/redis.service";
-import type { Plan } from "@prisma/client";
 
-// ── Cost configuration (plan §1.3) ──
 export const COST_TABLE = {
-  music: 10, // per generation
-  tts: 1, // per 1K characters (rounded up)
+  music: 10,
+  tts: 1,
   voice_clone: 50,
 } as const;
 
@@ -16,8 +16,8 @@ export function estimateCost(type: string, params: Record<string, unknown> = {})
       return COST_TABLE.music;
     case "tts": {
       const text = (params.text as string | undefined) ?? "";
-      const k = Math.max(1, Math.ceil(Buffer.byteLength(text, "utf-8") / 1000));
-      return k * COST_TABLE.tts;
+      const units = Math.max(1, Math.ceil(Buffer.byteLength(text, "utf-8") / 1000));
+      return units * COST_TABLE.tts;
     }
     case "voice_clone":
       return COST_TABLE.voice_clone;
@@ -26,11 +26,9 @@ export function estimateCost(type: string, params: Record<string, unknown> = {})
   }
 }
 
-// ── Redis key helpers ──
 const BALANCE_KEY = (userId: string) => `credit:balance:${userId}`;
 const HOLD_PREFIX = "credit:hold:";
 
-// ── Lua: atomic hold check & decrement ──
 const HOLD_SCRIPT = `
 local balanceKey = KEYS[1]
 local holdKey = KEYS[2]
@@ -68,10 +66,11 @@ export class EntitlementService {
     private readonly redis: RedisService,
   ) {}
 
-  // ── Balance ──
-
-  /** Get current balance, syncing from Postgres if Redis is cold. */
   async getBalance(userId: string): Promise<number> {
+    if (!this.redis.available) {
+      return this.computeBalance(userId);
+    }
+
     const cached = await this.redis.client.get(BALANCE_KEY(userId));
     if (cached !== null) return Number(cached);
 
@@ -88,31 +87,38 @@ export class EntitlementService {
     return result._sum.amount ?? 0;
   }
 
-  /** Warm up Redis balance from Postgres (used after grant/refund). */
   private async syncBalance(userId: string): Promise<void> {
+    if (!this.redis.available) return;
     const balance = await this.computeBalance(userId);
     await this.redis.client.set(BALANCE_KEY(userId), balance);
   }
 
-  // ── Hold / Commit / Refund ──
+  async hold(userId: string, cost: number, refType: string, refId: string): Promise<string | null> {
+    if (cost <= 0) return null;
 
-  /**
-   * Atomically reserve `cost` credits. Returns a holdId that must be committed
-   * or refunded. Returns null if insufficient balance.
-   */
-  async hold(
-    userId: string,
-    cost: number,
-    refType: string,
-    refId: string,
-  ): Promise<string | null> {
-    if (cost <= 0) return null; // free action — no hold needed
+    const holdId = randomUUID();
 
-    const holdId = crypto.randomUUID();
+    if (!this.redis.available) {
+      const balance = await this.computeBalance(userId);
+      if (balance < cost) return null;
+
+      await this.prisma.creditLedger.create({
+        data: {
+          userId,
+          type: "hold",
+          amount: -cost,
+          reason: refType,
+          refType,
+          refId,
+          holdId,
+        },
+      });
+      return holdId;
+    }
+
     const holdKey = HOLD_PREFIX + holdId;
-    const holdTtl = 3600; // auto-expire holds after 1h
+    const holdTtl = 3600;
 
-    // Ensure Redis balance is warm
     await this.getBalance(userId);
 
     const result = (await this.redis.client.eval(
@@ -125,9 +131,8 @@ export class EntitlementService {
       holdTtl,
     )) as number;
 
-    if (result === 0) return null; // insufficient balance
+    if (result === 0) return null;
 
-    // Persist hold in append-only ledger
     await this.prisma.creditLedger.create({
       data: {
         userId,
@@ -143,19 +148,24 @@ export class EntitlementService {
     return holdId;
   }
 
-  /** Finalize a hold — deduct credits permanently. */
   async commit(holdId: string): Promise<{ userId: string; cost: number }> {
     const holdEntry = await this.prisma.creditLedger.findFirst({
       where: { holdId, type: "hold" },
     });
     if (!holdEntry) throw new Error(`Hold ${holdId} not found`);
 
-    // Mark as committed with a commit entry
+    const settled = await this.prisma.creditLedger.findFirst({
+      where: { holdId, type: { in: ["commit", "refund"] } },
+    });
+    if (settled) {
+      return { userId: holdEntry.userId, cost: 0 };
+    }
+
     await this.prisma.creditLedger.create({
       data: {
         userId: holdEntry.userId,
         type: "commit",
-        amount: 0, // net zero (hold already subtracted)
+        amount: 0,
         reason: holdEntry.reason,
         refType: holdEntry.refType,
         refId: holdEntry.refId,
@@ -163,40 +173,38 @@ export class EntitlementService {
       },
     });
 
-    // Clean up Redis hold key (balance already decremented by hold)
-    await this.redis.client.del(HOLD_PREFIX + holdId);
+    if (this.redis.available) {
+      await this.redis.client.del(HOLD_PREFIX + holdId);
+    }
 
     return { userId: holdEntry.userId, cost: Math.abs(holdEntry.amount) };
   }
 
-  /** Refund a held amount — credits are returned. */
   async refund(holdId: string): Promise<{ userId: string; cost: number }> {
     const holdEntry = await this.prisma.creditLedger.findFirst({
       where: { holdId, type: "hold" },
     });
     if (!holdEntry) throw new Error(`Hold ${holdId} not found`);
 
-    // Check if already settled (commit/refund)
     const settled = await this.prisma.creditLedger.findFirst({
       where: { holdId, type: { in: ["commit", "refund"] } },
     });
     if (settled) {
-      this.logger.warn(`Hold ${holdId} already settled — skipping refund`);
+      this.logger.warn(`Hold ${holdId} already settled; skipping refund`);
       return { userId: holdEntry.userId, cost: 0 };
     }
 
     const cost = Math.abs(holdEntry.amount);
-    const holdKey = HOLD_PREFIX + holdId;
 
-    // Refund in Redis (returns cost if hold existed, 0 otherwise)
-    await this.redis.client.eval(REFUND_SCRIPT, 2, BALANCE_KEY(holdEntry.userId), holdKey);
+    if (this.redis.available) {
+      await this.redis.client.eval(REFUND_SCRIPT, 2, BALANCE_KEY(holdEntry.userId), HOLD_PREFIX + holdId);
+    }
 
-    // Persist refund
     await this.prisma.creditLedger.create({
       data: {
         userId: holdEntry.userId,
         type: "refund",
-        amount: cost, // positive = credit back
+        amount: cost,
         reason: `refund:${holdEntry.reason}`,
         refType: holdEntry.refType,
         refId: holdEntry.refId,
@@ -204,21 +212,11 @@ export class EntitlementService {
       },
     });
 
-    // Re-sync balance
     await this.syncBalance(holdEntry.userId);
     return { userId: holdEntry.userId, cost };
   }
 
-  // ── Grant / Consume ──
-
-  /** Grant credits (monthly reset, purchase, admin, etc.). */
-  async grant(
-    userId: string,
-    amount: number,
-    reason: string,
-    refType?: string,
-    refId?: string,
-  ): Promise<void> {
+  async grant(userId: string, amount: number, reason: string, refType?: string, refId?: string): Promise<void> {
     await this.prisma.creditLedger.create({
       data: {
         userId,
@@ -232,7 +230,6 @@ export class EntitlementService {
     await this.syncBalance(userId);
   }
 
-  /** Direct consume (no hold/commit needed — e.g., penalty). */
   async consume(userId: string, amount: number, reason: string): Promise<void> {
     const cost = Math.abs(amount);
     const current = await this.getBalance(userId);
@@ -251,15 +248,11 @@ export class EntitlementService {
     await this.syncBalance(userId);
   }
 
-  /** Grant monthly credits based on plan (called on registration & cron reset). */
   async grantMonthly(userId: string, plan: { monthlyCredits: number; code: string }): Promise<void> {
     await this.grant(userId, plan.monthlyCredits, "monthly_reset", "plan", plan.code);
     this.logger.log(`Granted ${plan.monthlyCredits} monthly credits to ${userId} (plan: ${plan.code})`);
   }
 
-  // ── Free plan seed ──
-
-  /** Ensure the free plan exists so registration can grant credits. */
   async ensureFreePlan(): Promise<Plan> {
     let plan = await this.prisma.plan.findUnique({ where: { code: "free" } });
     if (!plan) {

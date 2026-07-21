@@ -69,7 +69,7 @@ export function TtsProPanel({
       {activeTab === "basic" && (
         <div className="space-y-4">
           <Textarea
-            placeholder="\u8f93\u5165\u8981\u5408\u6210\u7684\u6587\u672c\uff08\u652f\u6301 `<#1#>` \u6682\u505c\u6807\u8bb0\uff09..."
+            placeholder="输入要合成的文本（支持 `<#1#>` 暂停标记）..."
             value={value.text}
             onChange={(e) => onChange({ ...value, text: e.target.value })}
             rows={5}
@@ -130,7 +130,7 @@ export function TtsProPanel({
           {(value.pronunciationDict ?? []).map((entry, i) => (
             <div key={i} className="flex gap-2">
               <Input
-                placeholder="\u539f\u6587"
+                placeholder="原文"
                 value={entry.original}
                 onChange={(e) => {
                   const next = [...(value.pronunciationDict ?? [])];
@@ -139,7 +139,7 @@ export function TtsProPanel({
                 }}
               />
               <Input
-                placeholder="\u66ff\u6362\u53d1\u97f3"
+                placeholder="替换发音"
                 value={entry.replacement}
                 onChange={(e) => {
                   const next = [...(value.pronunciationDict ?? [])];
@@ -170,7 +170,7 @@ export function TtsProPanel({
               <span className="w-16 text-sm tabular-nums">{`\u4f4d\u7f6e #${i + 1}`}</span>
               <Input
                 type="number"
-                placeholder="\u6beb\u79d2"
+                placeholder="毫秒"
                 value={pause.durationMs}
                 onChange={(e) => {
                   const next = [...(value.pauses ?? [])];

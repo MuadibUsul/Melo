@@ -39,7 +39,7 @@ const backgroundEnabled = process.env.ENABLE_BACKGROUND === "1";
     ...(backgroundEnabled ? [BullModule.forRoot({ connection: { url: process.env.REDIS_URL ?? "redis://localhost:6379" } })] : []),
     PrismaModule, RedisModule, StorageModule,
     AuthModule, EntitlementModule, ProviderModule, MediaModule,
-    ...(backgroundEnabled ? [GenerationModule, RealtimeModule] : []),
+    GenerationModule, RealtimeModule,
     AssetsModule, TracksModule,
     SocialModule, BillingModule, ChartsModule, PresetsModule,
     AdminModule, HealthModule,

@@ -6,7 +6,7 @@ export default function AdminContentPage() {
   return (
     <>
       <SiteNav />
-      <StudioShell eyebrow="后台" title="\u5185\u5bb9\u5ba1\u6838">
+      <StudioShell eyebrow="后台" title="内容审核">
         <AdminContentPanel />
       </StudioShell>
     </>

@@ -105,7 +105,7 @@ export class AuthService {
 
     const publicUser = toPublicUser(user);
     const accessToken = this.jwt.sign({ sub: user.id, role: user.role });
-    const refreshToken = this.jwt.sign({ sub: user.id }, { expiresIn: REFRESH_TTL_SEC });
+    const refreshToken = this.jwt.sign({ sub: user.id, type: "refresh" }, { expiresIn: REFRESH_TTL_SEC });
     this.setRefreshCookie(res, refreshToken);
     return { user: publicUser, accessToken };
   }
@@ -114,13 +114,19 @@ export class AuthService {
     refreshToken: string,
     res: Response,
   ): Promise<{ user: PublicUser; accessToken: string }> {
-    let payload: { sub: string };
+    let payload: { sub: string; type?: string };
     try {
       payload = this.jwt.verify(refreshToken);
     } catch {
       throw new UnauthorizedException({
         code: "AUTH_TOKEN_EXPIRED",
         message: "登录已过期，请重新登录。",
+      });
+    }
+    if (payload.type !== "refresh") {
+      throw new UnauthorizedException({
+        code: "AUTH_TOKEN_INVALID",
+        message: "无效的刷新令牌。",
       });
     }
 
@@ -134,7 +140,7 @@ export class AuthService {
 
     const publicUser = toPublicUser(user);
     const accessToken = this.jwt.sign({ sub: user.id, role: user.role });
-    const newRefreshToken = this.jwt.sign({ sub: user.id }, { expiresIn: REFRESH_TTL_SEC });
+    const newRefreshToken = this.jwt.sign({ sub: user.id, type: "refresh" }, { expiresIn: REFRESH_TTL_SEC });
     this.setRefreshCookie(res, newRefreshToken);
     return { user: publicUser, accessToken };
   }

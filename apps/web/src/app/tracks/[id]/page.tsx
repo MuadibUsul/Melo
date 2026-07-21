@@ -1,9 +1,15 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+import { AudioLines, GitBranch, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { LocalTrackDetail } from "@/components/LocalTrackDetail";
-import { SiteNav } from "@/components/SiteNav";
+import { MeloMobileDock } from "@/components/MeloMobileDock";
+import { MeloMobileTopBar } from "@/components/MeloMobileTopBar";
+import { MeloRail } from "@/components/MeloRail";
+import { MeloTopBar } from "@/components/MeloTopBar";
 import { StudioShell } from "@/components/StudioShell";
 import { TrackInteractiveSection } from "@/components/TrackInteractiveSection";
+import { formatMeloName } from "@/lib/brand";
 import { getSeedPublicPlaylists, getSeedTrack, getSeedTracks } from "@/lib/fallback/catalog";
 
 interface TrackDetail {
@@ -37,6 +43,74 @@ interface PublicPlaylist {
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1";
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://melo.local").replace(/\/$/, "");
+
+type TrackPageProps = { params: Promise<{ id: string }> };
+
+function absoluteUrl(path: string) {
+  return `${SITE_URL}${path}`;
+}
+
+function formatIsoDuration(ms?: number | null) {
+  if (!ms) return undefined;
+  const totalSeconds = Math.max(0, Math.round(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `PT${minutes}M${seconds}S`;
+}
+
+function getTrackJsonLd(track: TrackDetail, audioUrl: string | null) {
+  const url = absoluteUrl(`/song/${track.id}`);
+  const duration = formatIsoDuration(track.asset?.durationMs);
+  return {
+    "@context": "https://schema.org",
+    "@type": "MusicRecording",
+    "@id": `${url}#music-recording`,
+    name: track.title,
+    description: track.description ?? `${track.creator.displayName} on Melo`,
+    url,
+    inLanguage: "zh-CN",
+    genre: track.genre ?? undefined,
+    keywords: track.tags.join(", "),
+    duration,
+    isAccessibleForFree: true,
+    isFamilyFriendly: true,
+    byArtist: {
+      "@type": "MusicGroup",
+      name: track.creator.displayName,
+      url: absoluteUrl(`/creators/${track.creator.id}`),
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "Melo",
+      url: SITE_URL,
+    },
+    encoding: audioUrl
+      ? {
+          "@type": "AudioObject",
+          contentUrl: audioUrl,
+          encodingFormat: "audio/mpeg",
+        }
+      : undefined,
+    interactionStatistic: [
+      {
+        "@type": "InteractionCounter",
+        interactionType: "https://schema.org/ListenAction",
+        userInteractionCount: track.playCount,
+      },
+      {
+        "@type": "InteractionCounter",
+        interactionType: "https://schema.org/LikeAction",
+        userInteractionCount: track.likeCount,
+      },
+      {
+        "@type": "InteractionCounter",
+        interactionType: "https://schema.org/CommentAction",
+        userInteractionCount: track.commentCount,
+      },
+    ],
+  };
+}
 
 async function getBackendTrack(id: string): Promise<TrackDetail | null> {
   try {
@@ -64,24 +138,68 @@ async function getBackendTrack(id: string): Promise<TrackDetail | null> {
   }
 }
 
+export async function generateMetadata({ params }: TrackPageProps): Promise<Metadata> {
+  const { id } = await params;
+  const track = await getBackendTrack(id);
+  if (!track) {
+    return {
+      title: "Melo 作品",
+      description: "在 Melo 发现中文 AI 音乐作品。",
+    };
+  }
+
+  const creatorName = formatMeloName(track.creator.displayName);
+  const description = track.description || `${creatorName} 在 Melo 发布的 ${track.genre || "AI 音乐"}作品。`;
+  const title = `${track.title} - Melo`;
+  const url = `/song/${track.id}`;
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: url,
+      types: {
+        "application/json+oembed": `/oembed?url=${encodeURIComponent(url)}`,
+      },
+    },
+    openGraph: {
+      title,
+      description,
+      type: "music.song",
+      url,
+      siteName: "Melo",
+    },
+    twitter: {
+      card: "summary",
+      title,
+      description,
+    },
+  };
+}
+
 async function getRelatedTracks(id: string, genre?: string | null): Promise<RelatedTrack[]> {
-  if (!genre) return [];
+  const seedRelated = () => {
+    const seededTracks = getSeedTracks().filter((track) => track.id !== id);
+    const sameGenre = genre ? seededTracks.filter((track) => track.genre === genre) : [];
+    const candidates = sameGenre.length >= 3 ? sameGenre : seededTracks.sort((a, b) => b.playCount - a.playCount);
+    return candidates.slice(0, 6).map((track) => ({
+      id: track.id,
+      title: track.title,
+      genre: track.genre,
+      playCount: track.playCount,
+      creator: { id: track.creator.id, displayName: track.creator.displayName },
+    }));
+  };
+
   try {
-    const response = await fetch(`${API_BASE}/tracks?genre=${encodeURIComponent(genre)}`, { cache: "no-store" });
+    const path = genre ? `/tracks?genre=${encodeURIComponent(genre)}` : "/charts/hot";
+    const response = await fetch(`${API_BASE}${path}`, { cache: "no-store" });
     if (!response.ok) throw new Error("bad response");
     const data = (await response.json()) as { items?: RelatedTrack[] };
-    return (data.items ?? []).filter((item) => item.id !== id).slice(0, 6);
+    const items = (data.items ?? []).filter((item) => item.id !== id).slice(0, 6);
+    return items.length > 0 ? items : seedRelated();
   } catch {
-    return getSeedTracks()
-      .filter((track) => track.genre === genre && track.id !== id)
-      .slice(0, 6)
-      .map((track) => ({
-        id: track.id,
-        title: track.title,
-        genre: track.genre,
-        playCount: track.playCount,
-        creator: { id: track.creator.id, displayName: track.creator.displayName },
-      }));
+    return seedRelated();
   }
 }
 
@@ -90,33 +208,40 @@ async function getPublicPlaylists(): Promise<PublicPlaylist[]> {
     const response = await fetch(`${API_BASE}/playlists/public`, { cache: "no-store" });
     if (!response.ok) throw new Error("bad response");
     const data = (await response.json()) as { items?: PublicPlaylist[] };
-    return data.items ?? [];
+    return (data.items ?? []).map((playlist) => ({
+      ...playlist,
+      owner: { displayName: formatMeloName(playlist.owner.displayName) },
+    }));
   } catch {
     return getSeedPublicPlaylists().map((playlist) => ({
       id: playlist.id,
       title: playlist.title,
-      owner: { displayName: playlist.owner.displayName },
+      owner: { displayName: formatMeloName(playlist.owner.displayName) },
       tracks: playlist.tracks.map((item) => ({ track: { id: item.track.id, title: item.track.title } })),
     }));
   }
 }
 
-export default async function TrackDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function TrackDetailPage({ params }: TrackPageProps) {
   const { id } = await params;
   const track = await getBackendTrack(id);
 
   if (!track) {
     return (
       <>
-        <SiteNav />
-        <StudioShell eyebrow="作品" title="作品详情">
+        <MeloMobileTopBar />
+        <MeloRail />
+        <MeloTopBar />
+        <MeloMobileDock />
+        <StudioShell className="melo-rail-offset melo-mobile-dock-offset" eyebrow="作品" title="作品详情">
           <LocalTrackDetail />
         </StudioShell>
       </>
     );
   }
 
-  const audioUrl = track.asset?.streamKey || track.asset?.storageKey || "";
+  const audioUrl = track.asset?.streamKey || track.asset?.storageKey || null;
+  const trackJsonLd = getTrackJsonLd(track, audioUrl);
   const [relatedTracks, publicPlaylists] = await Promise.all([
     getRelatedTracks(track.id, track.genre),
     getPublicPlaylists(),
@@ -127,13 +252,20 @@ export default async function TrackDetailPage({ params }: { params: Promise<{ id
 
   return (
     <>
-      <SiteNav />
-      <StudioShell eyebrow="作品" title={track.title} description={track.description ?? "原创音乐作品"}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(trackJsonLd) }}
+      />
+      <MeloMobileTopBar />
+      <MeloRail />
+      <MeloTopBar />
+      <MeloMobileDock />
+      <StudioShell className="melo-rail-offset melo-mobile-dock-offset" eyebrow="作品" title={track.title} description={track.description ?? "Melo 原创音乐作品"}>
         <div className="space-y-6">
           <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)_320px]">
             <div className="studio-surface aspect-square rounded-lg p-6">
               <div className="flex h-full flex-col items-center justify-center rounded-lg bg-studio-gold/10 text-center text-studio-gold">
-                <div className="text-xs uppercase tracking-[0.18em] text-studio-gold/80">单曲</div>
+                <div className="text-xs uppercase tracking-[0.18em] text-studio-gold/80">Track</div>
                 <div className="mt-3 max-w-[12rem] text-2xl font-semibold">{track.title}</div>
               </div>
             </div>
@@ -156,7 +288,7 @@ export default async function TrackDetailPage({ params }: { params: Promise<{ id
                   id={track.id}
                   title={track.title}
                   artist={track.creator.displayName}
-                  audioUrl={audioUrl}
+                  audioUrl={audioUrl ?? ""}
                   durationMs={track.asset?.durationMs ?? undefined}
                 />
               </div>
@@ -171,31 +303,59 @@ export default async function TrackDetailPage({ params }: { params: Promise<{ id
                 </pre>
               ) : (
                 <div className="mt-6 rounded-lg border border-panel-border bg-black/20 p-4 text-sm text-muted-foreground">
-                  纯音乐作品
+                  这是一首纯音乐作品。
                 </div>
               )}
             </section>
 
-            <aside className="studio-surface rounded-lg p-5">
-              <div className="mb-4 text-lg font-semibold">收录歌单</div>
-              <div className="space-y-2">
-                {containingPlaylists.length > 0 ? (
-                  containingPlaylists.map((playlist) => (
-                    <Link
-                      key={playlist.id}
-                      href={`/playlists/${playlist.id}`}
-                      className="block rounded-lg border border-panel-border bg-black/20 px-3 py-3 transition hover:border-studio-gold/45"
-                    >
-                      <div className="text-sm font-medium">{playlist.title}</div>
-                      <div className="mt-1 text-xs text-muted-foreground">{playlist.owner.displayName}</div>
-                    </Link>
-                  ))
-                ) : (
-                  <div className="rounded-lg border border-panel-border bg-black/20 p-3 text-sm text-muted-foreground">
-                    暂无收录歌单
+            <aside className="space-y-5">
+              <section className="studio-surface rounded-lg p-5">
+                <div className="mb-4 text-lg font-semibold">收录歌单</div>
+                <div className="space-y-2">
+                  {containingPlaylists.length > 0 ? (
+                    containingPlaylists.map((playlist) => (
+                      <Link
+                        key={playlist.id}
+                        href={`/playlists/${playlist.id}`}
+                        className="block rounded-lg border border-panel-border bg-black/20 px-3 py-3 transition hover:border-studio-gold/45"
+                      >
+                        <div className="text-sm font-medium">{playlist.title}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">{playlist.owner.displayName}</div>
+                      </Link>
+                    ))
+                  ) : (
+                    <div className="rounded-lg border border-panel-border bg-black/20 p-3 text-sm text-muted-foreground">
+                      暂无收录歌单
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              <section className="studio-surface rounded-lg p-5">
+                <div className="mb-4 flex items-center gap-2 text-lg font-semibold">
+                  <GitBranch className="size-5 text-studio-gold" />
+                  创作谱系
+                </div>
+                <div className="space-y-2 text-sm text-muted-foreground">
+                  <div className="rounded-lg border border-panel-border bg-black/20 p-3">
+                    来自 Melo AI 生成，可继续翻唱、延展、Remix 或打开编辑器。
                   </div>
-                )}
-              </div>
+                  <Link
+                    href={`/studio/simple?prompt=${encodeURIComponent(`参考《${track.title}》创作一首新的中文歌曲`)}`}
+                    className="flex items-center gap-2 rounded-lg border border-panel-border bg-black/20 p-3 transition hover:border-studio-gold/45 hover:text-foreground"
+                  >
+                    <Sparkles className="size-4 text-studio-gold" />
+                    参考这首歌创作
+                  </Link>
+                  <Link
+                    href={`/studio/editor?source=${encodeURIComponent(track.id)}`}
+                    className="flex items-center gap-2 rounded-lg border border-panel-border bg-black/20 p-3 transition hover:border-studio-gold/45 hover:text-foreground"
+                  >
+                    <AudioLines className="size-4 text-studio-gold" />
+                    进入歌曲编辑器
+                  </Link>
+                </div>
+              </section>
             </aside>
           </div>
 
@@ -216,7 +376,7 @@ export default async function TrackDetailPage({ params }: { params: Promise<{ id
                     href={`/tracks/${item.id}`}
                     className="studio-surface rounded-lg p-4 transition hover:border-studio-gold/45"
                   >
-                    <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                    <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
                       {item.genre || "单曲"}
                     </div>
                     <div className="mt-3 text-lg font-semibold">{item.title}</div>

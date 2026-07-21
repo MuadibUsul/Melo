@@ -14,13 +14,13 @@ import {
 } from "@/components/ui/sheet";
 
 const links = [
-  { href: "/discover", label: "\u53d1\u73b0", icon: Compass },
-  { href: "/search", label: "\u641c\u7d22", icon: Search },
-  { href: "/charts", label: "\u699c\u5355", icon: ListMusic },
-  { href: "/categories", label: "\u5206\u7c7b", icon: Shapes },
-  { href: "/library", label: "\u66f2\u5e93", icon: LibraryBig },
-  { href: "/studio", label: "\u521b\u4f5c", icon: AudioLines },
-  { href: "/pricing", label: "\u5957\u9910", icon: Tag },
+  { href: "/discover", label: "发现", icon: Compass },
+  { href: "/search", label: "搜索", icon: Search },
+  { href: "/charts", label: "榜单", icon: ListMusic },
+  { href: "/categories", label: "分类", icon: Shapes },
+  { href: "/library", label: "音乐库", icon: LibraryBig },
+  { href: "/studio", label: "创作", icon: AudioLines },
+  { href: "/pricing", label: "套餐", icon: Tag },
 ];
 
 export function MobileNav() {
@@ -29,13 +29,13 @@ export function MobileNav() {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button size="icon-sm" variant="outline" className="md:hidden" aria-label="\u6253\u5f00\u83dc\u5355">
+        <Button size="icon-sm" variant="outline" className="md:hidden" aria-label="打开菜单">
           <Menu className="size-4" />
         </Button>
       </SheetTrigger>
       <SheetContent side="right" className="gap-2">
         <SheetHeader>
-          <SheetTitle>{"\u58f0\u6210\u97f3\u4e50"}</SheetTitle>
+          <SheetTitle>Melo</SheetTitle>
         </SheetHeader>
         <nav className="flex flex-col gap-1 px-2">
           {links.map((link) => {
@@ -57,7 +57,7 @@ export function MobileNav() {
               href="/login"
               className="mt-2 flex items-center justify-center gap-2 rounded-lg border border-panel-border bg-black/20 px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
-              {"\u767b\u5f55 / \u6ce8\u518c"}
+              登录 / 注册
             </Link>
           </SheetClose>
         </nav>

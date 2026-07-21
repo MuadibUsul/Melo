@@ -1,4 +1,4 @@
-import { Controller, Delete, Get, Param, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { paginationQuery } from "@music/contracts";
 import { AssetsService } from "./assets.service";
@@ -16,6 +16,14 @@ export class AssetsController {
   async list(@CurrentUser() user: JwtPayload, @Query() query: Record<string, string>) {
     const { page, pageSize } = paginationQuery.parse(query);
     return this.assets.list(user.sub, page, pageSize);
+  }
+
+  @Post("upload-url")
+  async prepareUpload(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: { filename?: string; contentType?: string; sizeBytes?: number; usage?: string },
+  ) {
+    return this.assets.prepareUpload(user.sub, body);
   }
 
   @Get(":id")

@@ -1,4 +1,5 @@
 import { api, ApiError } from "@/lib/api/client";
+import { formatMeloName } from "@/lib/brand";
 import type { TrackView } from "@/types/music";
 import {
   getSeedCreatorChart,
@@ -40,7 +41,7 @@ function toCatalogTrackFromSeed(track: ReturnType<typeof getSeedTracks>[number],
     audioUrl: track.audioUrl,
     creator: {
       id: track.creator.id,
-      displayName: track.creator.displayName,
+      displayName: formatMeloName(track.creator.displayName, "Melo 创作者"),
       avatarKey: null,
     },
     asset: {
@@ -75,7 +76,7 @@ export function toCatalogTrack(track: TrackView, index: number): CatalogTrack {
     audioUrl: track.audio_url ?? undefined,
     creator: {
       id: track.user_id,
-      displayName: "声成创作者",
+      displayName: "Melo 创作者",
       avatarKey: null,
     },
     asset: {
@@ -89,7 +90,18 @@ export function toCatalogTrack(track: TrackView, index: number): CatalogTrack {
 
 export async function getTracksWithFallback(backendPath: string): Promise<{ items: CatalogTrack[]; total: number }> {
   try {
-    return await api.get<{ items: CatalogTrack[]; total: number }>(backendPath);
+    const data = await api.get<{ items: CatalogTrack[]; total: number }>(backendPath);
+    return {
+      total: data.total,
+      items: data.items.map((track, index) => ({
+        ...track,
+        rank: track.rank ?? index + 1,
+        creator: {
+          ...track.creator,
+          displayName: formatMeloName(track.creator.displayName, "Melo 创作者"),
+        },
+      })),
+    };
   } catch (error) {
     if (!isNetworkError(error)) throw error;
     const search = backendPath.match(/\/tracks\/search\?q=(.*)$/)?.[1];
@@ -105,7 +117,17 @@ export async function getTracksWithFallback(backendPath: string): Promise<{ item
 
 export async function getChartWithFallback(type: "hot" | "new"): Promise<{ items: CatalogTrack[] }> {
   try {
-    return await api.get<{ items: CatalogTrack[] }>(`/charts/${type}`);
+    const data = await api.get<{ items: CatalogTrack[] }>(`/charts/${type}`);
+    return {
+      items: data.items.map((track, index) => ({
+        ...track,
+        rank: track.rank ?? index + 1,
+        creator: {
+          ...track.creator,
+          displayName: formatMeloName(track.creator.displayName, "Melo 创作者"),
+        },
+      })),
+    };
   } catch (error) {
     if (!isNetworkError(error)) throw error;
     const items = (type === "hot" ? getSeedHotChart() : getSeedNewChart()).map((track, index) =>

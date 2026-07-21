@@ -27,8 +27,8 @@ export function LibrarySearch({
       <Input
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        placeholder="搜索歌曲、风格或创作者"
-        aria-label="搜索曲库"
+        placeholder="搜索歌曲、风格、歌单或创作者"
+        aria-label="搜索 Melo 音乐库"
         className="h-10"
       />
       <Button type="submit" className="h-10">

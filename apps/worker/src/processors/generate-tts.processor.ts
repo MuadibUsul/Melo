@@ -1,6 +1,6 @@
 import type { Job } from "bullmq";
 import type { PrismaClient } from "@prisma/client";
-import type { MiniMaxClient } from "@music/sdk-minimax";
+import { MiniMaxError, type MiniMaxClient } from "@music/sdk-minimax";
 import type { AppEnv } from "@music/config";
 import {
   PutObjectCommand,
@@ -8,6 +8,7 @@ import {
   HeadBucketCommand,
   CreateBucketCommand,
 } from "@aws-sdk/client-s3";
+import { clearRedisHold, refundRedisHold } from "./credit-cache";
 
 export interface SharedContext {
   prisma: PrismaClient;
@@ -67,8 +68,10 @@ export async function generateTtsProcessor(
 
     console.log(`[worker] TTS job ${jobId} succeeded`);
   } catch (err) {
-    const message = (err as Error).message;
-    const errorCode = message.includes("permanent") ? "PROVIDER_PERMANENT" : "PROVIDER_TRANSIENT";
+    const errorCode =
+      err instanceof MiniMaxError && err.kind === "permanent"
+        ? "PROVIDER_PERMANENT"
+        : "PROVIDER_TRANSIENT";
     const maxAttempts = job.opts.attempts ?? 1;
     const willRetry = errorCode === "PROVIDER_TRANSIENT" && job.attemptsMade + 1 < maxAttempts;
 
@@ -132,6 +135,8 @@ async function commitHold(ctx: SharedContext, holdId: string): Promise<void> {
   });
   if (settled) return;
 
+  await clearRedisHold(ctx.redisUrl, holdId);
+
   await ctx.prisma.creditLedger.create({
     data: {
       userId: hold.userId,
@@ -155,6 +160,8 @@ async function refundHold(ctx: SharedContext, holdId: string): Promise<void> {
     where: { holdId, type: { in: ["commit", "refund"] } },
   });
   if (settled) return;
+
+  await refundRedisHold(ctx.redisUrl, hold.userId, holdId, Math.abs(hold.amount));
 
   await ctx.prisma.creditLedger.create({
     data: {

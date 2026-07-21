@@ -7,10 +7,10 @@ import { UserMenu } from "./UserMenu";
 
 export function SiteNav() {
   const links = [
-    { href: "/discover", label: "\u53d1\u73b0", icon: Compass },
-    { href: "/search", label: "\u641c\u7d22", icon: Search },
-    { href: "/charts", label: "\u699c\u5355", icon: Trophy },
-    { href: "/library", label: "\u66f2\u5e93", icon: Library },
+    { href: "/discover", label: "发现", icon: Compass },
+    { href: "/search", label: "搜索", icon: Search },
+    { href: "/charts", label: "榜单", icon: Trophy },
+    { href: "/library", label: "音乐库", icon: Library },
   ];
 
   return (
@@ -20,7 +20,7 @@ export function SiteNav() {
           <span className="studio-metal flex size-9 items-center justify-center rounded-lg border border-panel-border">
             <Music2 className="size-4 text-studio-gold" />
           </span>
-          <span className="leading-tight">{"\u58f0\u6210\u97f3\u4e50"}</span>
+          <span className="leading-tight">Melo</span>
         </Link>
         <nav className="hidden items-center gap-2 text-sm text-muted-foreground md:flex">
           {links.map((link) => {
@@ -43,7 +43,7 @@ export function SiteNav() {
           <Button asChild size="sm" className="hidden sm:inline-flex">
             <Link href="/studio">
               <AudioLines className="size-4" />
-              {"\u521b\u4f5c"}
+              创作
             </Link>
           </Button>
           <MobileNav />

@@ -3,18 +3,20 @@ import { Music2 } from "lucide-react";
 
 const columns = [
   {
-    title: "\u4ea7\u54c1",
+    title: "产品",
     links: [
-      { href: "/studio", label: "\u521b\u4f5c" },
-      { href: "/library", label: "\u66f2\u5e93" },
-      { href: "/pricing", label: "\u5957\u9910" },
+      { href: "/discover", label: "发现" },
+      { href: "/studio", label: "创作" },
+      { href: "/library", label: "曲库" },
+      { href: "/pricing", label: "套餐" },
     ],
   },
   {
-    title: "\u7ba1\u7406",
+    title: "管理",
     links: [
-      { href: "/login", label: "\u767b\u5f55" },
-      { href: "/admin", label: "\u540e\u53f0" },
+      { href: "/account", label: "账号" },
+      { href: "/login", label: "登录" },
+      { href: "/admin", label: "后台" },
     ],
   },
 ];
@@ -28,8 +30,11 @@ export function SiteFooter() {
             <span className="studio-metal flex size-9 items-center justify-center rounded-lg border border-panel-border">
               <Music2 className="size-4 text-studio-gold" />
             </span>
-            {"\u58f0\u6210\u97f3\u4e50"}
+            Melo
           </div>
+          <p className="max-w-sm text-sm leading-6 text-muted-foreground">
+            发现、创作、收藏和分享中文 AI 音乐。
+          </p>
         </div>
         {columns.map((column) => (
           <div key={column.title} className="space-y-3">
@@ -48,9 +53,8 @@ export function SiteFooter() {
       </div>
       <div className="border-t border-panel-border">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-2 px-4 py-5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <span>
-            {"\u00a9"} {new Date().getFullYear()} {"\u58f0\u6210\u97f3\u4e50"}
-          </span>
+          <span>© {new Date().getFullYear()} Melo</span>
+          <span>Original Chinese AI music experience.</span>
         </div>
       </div>
     </footer>

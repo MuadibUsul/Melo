@@ -37,8 +37,9 @@ export class ChartsService {
     });
 
     const items = tracks
-      .map((t, i) => ({ ...t, rank: i + 1, score: scores[t.id] ?? 0 }))
-      .sort((a, b) => b.score - a.score);
+      .map((t) => ({ ...t, score: scores[t.id] ?? 0 }))
+      .sort((a, b) => b.score - a.score)
+      .map((t, i) => ({ ...t, rank: i + 1 }));
 
     return { items };
   }

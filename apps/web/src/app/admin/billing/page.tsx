@@ -6,7 +6,7 @@ export default function AdminBillingPage() {
   return (
     <>
       <SiteNav />
-      <StudioShell eyebrow="后台" title="\u8ba1\u8d39\u7ba1\u7406">
+      <StudioShell eyebrow="后台" title="计费管理">
         <AdminBillingPanel />
       </StudioShell>
     </>

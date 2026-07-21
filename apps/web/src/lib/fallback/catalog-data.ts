@@ -30,16 +30,16 @@ export interface SeedPlaylist {
 }
 
 const creators: SeedCreator[] = [
-  { id: "creator-lin-ye", displayName: "林野", style: "中文流行", bio: "擅长城市叙事和温柔女声旋律。" },
-  { id: "creator-shen-yueqing", displayName: "沈月青", style: "国风", bio: "把古典器乐和现代流行编排融合在一起。" },
+  { id: "creator-lin-ye", displayName: "林野", style: "中文流行", bio: "擅长城市叙事、温柔女声旋律和轻盈合成器铺底。" },
+  { id: "creator-shen-yueqing", displayName: "沈月清", style: "国风", bio: "把古典器乐、现代流行结构和诗意人声织在一起。" },
   { id: "creator-mo-ran", displayName: "莫燃", style: "R&B", bio: "偏爱松弛律动、低频贝斯和夜色氛围。" },
   { id: "creator-qiao-an", displayName: "乔岸", style: "电子", bio: "将舞曲能量和合成器音墙写进流行结构。" },
   { id: "creator-yu-chuan", displayName: "余川", style: "Lo-fi", bio: "围绕学习、夜雨和低保真采样展开创作。" },
   { id: "creator-nan-xi", displayName: "南汐", style: "纯音乐", bio: "以钢琴和弦乐为主，适合播客与纪录片场景。" },
-  { id: "creator-han-su", displayName: "韩溯", style: "影视配乐", bio: "擅长情绪推进和大画面铺陈。" },
+  { id: "creator-han-su", displayName: "韩溯", style: "影视配乐", bio: "擅长情绪推进、大画面铺陈和预告片层次。" },
   { id: "creator-luo-xing", displayName: "洛星", style: "游戏配乐", bio: "热爱冒险主题、战斗循环和场景音乐。" },
-  { id: "creator-xiao-he", displayName: "小赫", style: "说唱", bio: "中文 flow 和街头叙事是他的核心标签。" },
-  { id: "creator-tang-wei", displayName: "唐微", style: "民谣", bio: "木吉他、口琴和轻叙事女声是她的标志。" },
+  { id: "creator-xiao-he", displayName: "小河", style: "说唱", bio: "中文 flow、街头叙事和锐利鼓组是他的核心标签。" },
+  { id: "creator-tang-wei", displayName: "唐微", style: "民谣", bio: "木吉他、口琴和轻叙事女声是她的标识。" },
 ];
 
 const tracks: SeedTrack[] = [
@@ -47,7 +47,7 @@ const tracks: SeedTrack[] = [
     id: "track-city-afterglow",
     title: "城市微光",
     description: "轻盈合成器和女声主旋律交织出的夜行单曲。",
-    lyrics: "[主歌]\n街灯沿着高架向远处退去\n人群在凌晨里慢慢安静\n\n[副歌]\n让微光落在你我之间\n把晚风写进今夜的和声",
+    lyrics: "[主歌]\n街灯沿着高架向远处退去\n人群在凌晨里慢慢安静\n\n[副歌]\n让微光落在你我之间\n把晚风写进今晚的和声",
     genre: "中文流行",
     tags: ["夜晚", "女声", "AI 生成", "热门单曲"],
     playCount: 158230,
@@ -62,8 +62,8 @@ const tracks: SeedTrack[] = [
   {
     id: "track-moon-return",
     title: "月下归舟",
-    description: "国风弦乐铺底，笛声和人声层层推进。",
-    lyrics: "[主歌]\n潮声落在青瓦上\n一盏旧灯照长巷\n\n[副歌]\n借月光渡一程水色\n把远行唱成归乡",
+    description: "国风弦乐铺底，箫声和人声层层推进。",
+    lyrics: "[主歌]\n潮声落在青瓦之中\n一盏旧灯照长巷\n\n[副歌]\n借月光渡一程水色\n把远行唱成归乡",
     genre: "国风",
     tags: ["诗意", "女声", "AI 生成", "新歌"],
     playCount: 143520,
@@ -79,7 +79,7 @@ const tracks: SeedTrack[] = [
     id: "track-blue-dawn",
     title: "蓝色凌晨",
     description: "带有 R&B 低频律动的深夜单曲。",
-    lyrics: "[主歌]\n霓虹在玻璃上缓缓坠落\n心跳和鼓点贴着耳朵\n\n[副歌]\n把这一夜留在蓝色凌晨\n让温度停在你的侧脸",
+    lyrics: "[主歌]\n霓虹在玻璃上缓缓坠落\n心跳和鼓点贴着耳朵\n\n[副歌]\n把这一夜留在蓝色黎明\n让温度停在你的侧脸",
     genre: "R&B",
     tags: ["暧昧", "男声", "AI 生成", "热榜"],
     playCount: 136840,
@@ -94,7 +94,7 @@ const tracks: SeedTrack[] = [
   {
     id: "track-neon-pulse",
     title: "霓虹脉冲",
-    description: "节拍强劲、适合夜跑和舞池的电子流行。",
+    description: "节拍强烈，适合夜跑和舞池的电子流行。",
     genre: "电子",
     tags: ["热烈", "合唱", "AI 生成", "派对"],
     playCount: 129760,
@@ -169,10 +169,10 @@ const tracks: SeedTrack[] = [
   {
     id: "track-north-loop",
     title: "环线以北",
-    description: "锋利鼓组和直给表达构成的中文说唱样例。",
+    description: "锐利鼓组和直接表达构成的中文说唱样例。",
     lyrics: "[主歌]\n列车穿过旧城区的天线\n我把故事写在每次转弯\n\n[副歌]\n我们在环线以北发声\n让每一句都落地生根",
     genre: "说唱",
-    tags: ["锋利", "男声", "AI 生成", "现场感"],
+    tags: ["锐利", "男声", "AI 生成", "现场感"],
     playCount: 102760,
     likeCount: 9840,
     commentCount: 139,
@@ -184,7 +184,7 @@ const tracks: SeedTrack[] = [
   },
   {
     id: "track-wind-stop",
-    title: "风经过站口",
+    title: "风经过站台",
     description: "温暖木吉他和口琴色彩的民谣作品。",
     lyrics: "[主歌]\n晚风吹过旧站台的指针\n有人把告别唱得很轻\n\n[副歌]\n等风经过站口的时候\n你会听见心事慢慢变晴",
     genre: "民谣",
@@ -201,10 +201,25 @@ const tracks: SeedTrack[] = [
 ];
 
 const playlistSeeds = [
-  { id: "editor-picks", title: "编辑精选", trackIds: ["track-city-afterglow", "track-moon-return", "track-blue-dawn", "track-neon-pulse", "track-rain-study", "track-white-oak", "track-mountain-prelude", "track-stargate-battle"] },
+  {
+    id: "editor-picks",
+    title: "编辑精选",
+    trackIds: [
+      "track-city-afterglow",
+      "track-moon-return",
+      "track-blue-dawn",
+      "track-neon-pulse",
+      "track-rain-study",
+      "track-white-oak",
+      "track-mountain-prelude",
+      "track-stargate-battle",
+    ],
+  },
   { id: "midnight-rnb", title: "午夜律动", trackIds: ["track-blue-dawn", "track-city-afterglow", "track-neon-pulse", "track-wind-stop"] },
   { id: "focus-lofi", title: "专注工作流", trackIds: ["track-rain-study", "track-white-oak", "track-mountain-prelude", "track-wind-stop"] },
   { id: "cinematic-journey", title: "画面感配乐", trackIds: ["track-mountain-prelude", "track-stargate-battle", "track-white-oak", "track-moon-return"] },
+  { id: "new-from-melo", title: "Melo 新声", trackIds: ["track-moon-return", "track-neon-pulse", "track-north-loop", "track-wind-stop"] },
+  { id: "weekend-drive", title: "周末兜风", trackIds: ["track-city-afterglow", "track-blue-dawn", "track-wind-stop", "track-neon-pulse"] },
 ];
 
 function materializePlaylist(id: string) {
@@ -213,7 +228,7 @@ function materializePlaylist(id: string) {
   return {
     id: seed.id,
     title: seed.title,
-    owner: { id: "editorial", displayName: "声成编辑部" },
+    owner: { id: "editorial", displayName: "Melo 编辑部" },
     tracks: seed.trackIds
       .map((trackId) => tracks.find((track) => track.id === trackId))
       .filter((track): track is SeedTrack => Boolean(track))

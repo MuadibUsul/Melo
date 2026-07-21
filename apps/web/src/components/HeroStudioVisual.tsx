@@ -14,7 +14,7 @@ export function HeroStudioVisual() {
           <Disc3 className="size-4 text-studio-gold" />
           创作会话
         </div>
-        <div className="font-mono text-[11px] text-meter-green">MiniMax · AI 生成</div>
+        <div className="font-mono text-[11px] text-meter-green">Melo · AI 生成</div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-[0.78fr_1fr]">

@@ -8,9 +8,11 @@ import { EntitlementModule } from "../entitlement/entitlement.module";
 import { ProviderModule } from "../provider/provider.module";
 import { MediaModule } from "../media/media.module";
 
+const backgroundEnabled = process.env.ENABLE_BACKGROUND === "1";
+
 @Module({
   imports: [
-    BullModule.registerQueue({ name: "generation" }),
+    ...(backgroundEnabled ? [BullModule.registerQueue({ name: "generation" })] : []),
     EntitlementModule,
     ProviderModule,
     MediaModule,

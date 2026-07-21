@@ -1,13 +1,36 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Heart, Loader2, Play } from "lucide-react";
 import Link from "next/link";
-import { getPlayableUrl, getTracksWithFallback, type CatalogTrack } from "@/lib/fallback/catalog";
-import { usePlayerStore, type PlayerTrack } from "@/lib/player/use-player-store";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { getPlayableUrl, getTracksWithFallback, type CatalogTrack } from "@/lib/fallback/catalog";
+import { getLocalDemoPublishedTracks } from "@/lib/local-demo-generation";
+import { usePlayerStore, type PlayerTrack } from "@/lib/player/use-player-store";
 import { ErrorAlert } from "./ErrorAlert";
+
+const DISCOVER_SAVED_TRACKS_KEY = "melo.discover.savedTracks";
+const SHELF_SAVED_TRACKS_KEY = "melo.discover.shelfSavedTracks";
+
+function readSavedTrackIds() {
+  if (typeof window === "undefined") return [];
+  const ids = new Set<string>();
+  for (const key of [DISCOVER_SAVED_TRACKS_KEY, SHELF_SAVED_TRACKS_KEY]) {
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem(key) ?? "[]");
+      if (Array.isArray(parsed)) {
+        parsed.forEach((item) => {
+          if (typeof item === "string") ids.add(item);
+        });
+      }
+    } catch {
+      window.localStorage.removeItem(key);
+    }
+  }
+  return [...ids];
+}
 
 function toPlayerTrack(track: CatalogTrack, audioUrl: string): PlayerTrack {
   return {
@@ -19,7 +42,9 @@ function toPlayerTrack(track: CatalogTrack, audioUrl: string): PlayerTrack {
   };
 }
 
-export function TrackList({ genre, searchQuery }: { genre?: string; searchQuery?: string }) {
+export function TrackList({ genre, searchQuery, likedOnly = false }: { genre?: string; searchQuery?: string; likedOnly?: boolean }) {
+  const [localTracks, setLocalTracks] = useState<CatalogTrack[]>([]);
+  const [savedTrackIds, setSavedTrackIds] = useState<string[]>(() => readSavedTrackIds());
   const endpoint = searchQuery
     ? `/tracks/search?q=${encodeURIComponent(searchQuery)}`
     : genre
@@ -32,12 +57,59 @@ export function TrackList({ genre, searchQuery }: { genre?: string; searchQuery?
   });
 
   const player = usePlayerStore();
-  const tracks = data?.items ?? [];
+  useEffect(() => {
+    function refreshLocalTracks() {
+      const published = getLocalDemoPublishedTracks();
+      setLocalTracks(
+        published.map((track, index) => ({
+          id: track.id,
+          title: track.title,
+          genre: track.genre,
+          tags: ["本地演示", track.visibility === "public" ? "公开" : "仅链接可见"],
+          playCount: 0,
+          likeCount: 0,
+          rank: index + 1,
+          score: 1000 - index,
+          audioUrl: track.audioUrl,
+          creator: { id: "demo-local-user", displayName: "我的创作", avatarKey: null },
+          asset: { id: track.assetId, storageKey: track.audioUrl, durationMs: track.durationMs },
+          publishedAt: track.createdAt,
+        })),
+      );
+    }
+
+    refreshLocalTracks();
+    const refreshSavedTracks = () => setSavedTrackIds(readSavedTrackIds());
+    window.addEventListener("tracks-updated", refreshLocalTracks);
+    window.addEventListener("storage", refreshLocalTracks);
+    window.addEventListener("storage", refreshSavedTracks);
+    window.addEventListener("library-saved-updated", refreshSavedTracks);
+    return () => {
+      window.removeEventListener("tracks-updated", refreshLocalTracks);
+      window.removeEventListener("storage", refreshLocalTracks);
+      window.removeEventListener("storage", refreshSavedTracks);
+      window.removeEventListener("library-saved-updated", refreshSavedTracks);
+    };
+  }, []);
+
+  const tracks = useMemo(() => {
+    const remoteTracks = data?.items ?? [];
+    const query = searchQuery?.trim().toLowerCase();
+    const saved = new Set(savedTrackIds);
+    return [...localTracks, ...remoteTracks].filter((track) => {
+      if (likedOnly && !saved.has(track.id)) return false;
+      if (genre && track.genre !== genre) return false;
+      if (!query) return true;
+      return [track.title, track.genre, track.creator.displayName, ...track.tags]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query));
+    });
+  }, [data?.items, genre, likedOnly, localTracks, savedTrackIds, searchQuery]);
   const context = searchQuery
     ? { title: `搜索：${searchQuery}`, href: `/search?q=${encodeURIComponent(searchQuery)}` }
     : genre
       ? { title: genre, href: `/categories?genre=${encodeURIComponent(genre)}` }
-      : { title: "曲库", href: "/library" };
+      : { title: "音乐库", href: "/library" };
 
   if (isError) return <ErrorAlert onRetry={() => refetch()} />;
 
@@ -73,6 +145,7 @@ export function TrackList({ genre, searchQuery }: { genre?: string; searchQuery?
               <Button
                 variant="ghost"
                 size="icon-sm"
+                aria-label={`播放 ${track.title}`}
                 onClick={async () => {
                   const queueUrls = await Promise.all(tracks.map((item) => getPlayableUrl(item)));
                   const queue = tracks.map((item, queueIndex) =>
@@ -105,7 +178,7 @@ export function TrackList({ genre, searchQuery }: { genre?: string; searchQuery?
             </div>
 
             <div className="flex items-center gap-1 text-xs text-muted-foreground md:text-sm">
-              <Heart className="size-3" /> {track.likeCount}
+              <Heart className="size-3" /> {track.likeCount.toLocaleString("zh-CN")}
             </div>
 
             <div className="text-right text-xs text-muted-foreground md:text-sm">{formatDuration(track.asset?.durationMs)}</div>

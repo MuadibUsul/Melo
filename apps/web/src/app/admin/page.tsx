@@ -13,7 +13,7 @@ export default function AdminPage() {
   return (
     <>
       <SiteNav />
-      <StudioShell eyebrow="后台" title="\u8fd0\u8425\u540e\u53f0">
+      <StudioShell eyebrow="后台" title="运营后台">
         <div className="grid gap-4 md:grid-cols-2">
           {modules.map((item) => (
             <Link

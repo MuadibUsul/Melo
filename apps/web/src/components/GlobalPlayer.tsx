@@ -3,12 +3,15 @@
 import { useCallback, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Disc3, Heart, ListMusic, Pause, Play, SkipBack, SkipForward, Volume2, X } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Disc3, Heart, ListMusic, Pause, Play, Repeat, Shuffle, SkipBack, SkipForward, Volume2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getPlaybackDeviceId } from "@/lib/player/device-id";
 import { usePlayerStore, type PlayMode } from "@/lib/player/use-player-store";
 
 export function GlobalPlayer() {
+  const pathname = usePathname();
+  const isEmbedRoute = pathname.startsWith("/embed/");
   const store = usePlayerStore();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const playReportedRef = useRef<string | null>(null);
@@ -47,6 +50,7 @@ export function GlobalPlayer() {
   );
 
   useEffect(() => {
+    if (isEmbedRoute) return;
     if (!audioRef.current) {
       audioRef.current = new Audio();
       audioRef.current.preload = "auto";
@@ -69,9 +73,10 @@ export function GlobalPlayer() {
       audio.removeEventListener("durationchange", onDurationChange);
       audio.removeEventListener("ended", onEnded);
     };
-  }, [currentTrack?.id, reportPlay, store]);
+  }, [currentTrack?.id, isEmbedRoute, reportPlay, store]);
 
   useEffect(() => {
+    if (isEmbedRoute) return;
     const audio = audioRef.current;
     if (!audio || !currentTrack) return;
     if (audio.src !== currentTrack.audioUrl) {
@@ -79,16 +84,25 @@ export function GlobalPlayer() {
       audio.load();
       playReportedRef.current = null;
     }
-    if (isPlaying) audio.play().catch(() => null);
-    else audio.pause();
-  }, [currentTrack, isPlaying]);
+    if (isPlaying) {
+      audio.play().catch((err: unknown) => {
+        if ((err as { name?: string })?.name !== "AbortError") {
+          store.pause();
+        }
+      });
+    } else {
+      audio.pause();
+    }
+  }, [currentTrack, isEmbedRoute, isPlaying, store]);
 
   useEffect(() => {
+    if (isEmbedRoute) return;
     if (!audioRef.current) return;
     audioRef.current.volume = volume;
-  }, [volume]);
+  }, [isEmbedRoute, volume]);
 
   useEffect(() => {
+    if (isEmbedRoute) return;
     if (!currentTrack?.id) return;
     playReportedRef.current = null;
     const timer = window.setTimeout(() => {
@@ -98,7 +112,7 @@ export function GlobalPlayer() {
     }, 15000);
 
     return () => window.clearTimeout(timer);
-  }, [currentTrack?.id, reportPlay]);
+  }, [currentTrack?.id, isEmbedRoute, reportPlay]);
 
   const handleSeek = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -122,26 +136,35 @@ export function GlobalPlayer() {
     single: "单曲循环",
   };
   const upcoming = queue.filter((_, index) => index !== queueIndex);
+  const hasTrack = Boolean(currentTrack);
+  const playModeButtonLabel = playMode === "random" ? "播放栏：关闭随机播放" : "播放栏：开启随机播放";
+  const repeatButtonLabel = playMode === "single" ? "播放栏：关闭单曲循环" : "播放栏：开启单曲循环";
+  const currentDuration = hasTrack ? store.duration : 0;
+  const currentPosition = hasTrack ? currentTime : 0;
 
-  if (!currentTrack) return null;
+  if (isEmbedRoute) return null;
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-panel-border bg-black/95 backdrop-blur-xl">
+      <div className="melo-player-bar fixed bottom-[76px] left-0 right-0 z-40 border-t border-panel-border bg-black/95 backdrop-blur-xl md:bottom-0">
         <div className="mx-auto grid max-w-7xl grid-cols-[1fr_auto] items-center gap-3 px-3 py-2.5 sm:flex sm:px-4">
           <div className="flex min-w-0 items-center gap-3 sm:w-72">
             <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-studio-gold/15">
-              {currentTrack.coverUrl ? (
+              {currentTrack?.coverUrl ? (
                 <Image src={currentTrack.coverUrl} alt="" width={44} height={44} className="size-full rounded-lg object-cover" />
               ) : (
                 <Disc3 className="size-5 text-studio-gold" />
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <Link href={`/tracks/${currentTrack.id}`} className="block truncate text-sm font-medium leading-tight hover:text-studio-gold">
-                {currentTrack.title}
-              </Link>
-              <p className="truncate text-xs text-muted-foreground">{currentTrack.artist}</p>
+              {currentTrack ? (
+                <Link href={`/tracks/${currentTrack.id}`} className="block truncate text-sm font-medium leading-tight hover:text-studio-gold">
+                  {currentTrack.title}
+                </Link>
+              ) : (
+                <p className="truncate text-sm font-medium leading-tight">Melo 电台</p>
+              )}
+              <p className="truncate text-xs text-muted-foreground">{currentTrack?.artist ?? "选择一首歌开始播放"}</p>
               {contextTitle ? (
                 contextHref ? (
                   <Link href={contextHref} className="block truncate text-[11px] text-muted-foreground hover:text-foreground">
@@ -152,14 +175,23 @@ export function GlobalPlayer() {
                 )
               ) : null}
             </div>
-            <Button variant="ghost" size="icon-sm" className="hidden shrink-0 sm:inline-flex">
+            <Button variant="ghost" size="icon-sm" className="hidden shrink-0 sm:inline-flex" title="喜欢" disabled={!hasTrack}>
               <Heart className="size-4" />
             </Button>
           </div>
 
           <div className="col-span-2 flex flex-1 flex-col items-center gap-0.5 sm:col-span-1">
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon-sm" onClick={store.prev}>
+              <Button
+                variant={playMode === "random" ? "secondary" : "ghost"}
+                size="icon-sm"
+                onClick={() => store.setPlayMode(playMode === "random" ? "sequential" : "random")}
+                title={modeLabels.random}
+                aria-label={playModeButtonLabel}
+              >
+                <Shuffle className="size-4" />
+              </Button>
+              <Button variant="ghost" size="icon-sm" onClick={store.prev} title="上一首" aria-label="播放栏：上一首" disabled={!hasTrack}>
                 <SkipBack className="size-4" />
               </Button>
               <Button
@@ -167,11 +199,23 @@ export function GlobalPlayer() {
                 size="icon-sm"
                 onClick={store.togglePlay}
                 className="size-9 rounded-full border border-studio-gold/30 hover:bg-studio-gold/10"
+                title={isPlaying ? "暂停" : "播放"}
+                aria-label={isPlaying ? "播放栏：暂停" : "播放栏：播放"}
+                disabled={!hasTrack}
               >
                 {isPlaying ? <Pause className="size-4 text-studio-gold" /> : <Play className="size-4 text-studio-gold" />}
               </Button>
-              <Button variant="ghost" size="icon-sm" onClick={store.next}>
+              <Button variant="ghost" size="icon-sm" onClick={store.next} title="下一首" aria-label="播放栏：下一首" disabled={!hasTrack}>
                 <SkipForward className="size-4" />
+              </Button>
+              <Button
+                variant={playMode === "single" ? "secondary" : "ghost"}
+                size="icon-sm"
+                onClick={() => store.setPlayMode(playMode === "single" ? "sequential" : "single")}
+                title={modeLabels.single}
+                aria-label={repeatButtonLabel}
+              >
+                <Repeat className="size-4" />
               </Button>
               <Button
                 variant={isQueueOpen ? "secondary" : "ghost"}
@@ -184,17 +228,19 @@ export function GlobalPlayer() {
               </Button>
             </div>
             <div className="flex w-full max-w-lg items-center gap-2">
-              <span className="w-10 text-right text-[11px] tabular-nums text-muted-foreground">{formatTime(currentTime)}</span>
+              <span className="w-10 text-right text-[11px] tabular-nums text-muted-foreground">{formatTime(currentPosition)}</span>
               <input
                 type="range"
                 min={0}
-                max={store.duration || 1}
+                max={currentDuration || 1}
                 step={0.1}
-                value={currentTime}
+                value={currentPosition}
                 onChange={handleSeek}
+                aria-label="播放进度"
                 className="h-1 flex-1 accent-studio-gold"
+                disabled={!hasTrack}
               />
-              <span className="w-10 text-[11px] tabular-nums text-muted-foreground">{formatTime(store.duration)}</span>
+              <span className="w-10 text-[11px] tabular-nums text-muted-foreground">{hasTrack ? formatTime(currentDuration) : "--:--"}</span>
             </div>
             <div className="text-[11px] text-muted-foreground">{queue.length > 0 ? `${queueIndex + 1} / ${queue.length}` : null}</div>
           </div>
@@ -209,14 +255,24 @@ export function GlobalPlayer() {
                 store.setPlayMode(modes[(index + 1) % 3]!);
               }}
               title={modeLabels[playMode]}
+              aria-label="播放模式"
             >
-              <ListMusic className="size-4" />
+              {playMode === "random" ? <Shuffle className="size-4" /> : <Repeat className="size-4" />}
             </Button>
             <Button variant={isQueueOpen ? "secondary" : "ghost"} size="icon-sm" onClick={() => store.setQueueOpen(!isQueueOpen)} title="播放队列">
               <ListMusic className="size-4" />
             </Button>
             <Volume2 className="size-4 text-muted-foreground" />
-            <input type="range" min={0} max={1} step={0.05} value={volume} onChange={handleVolumeChange} className="h-1 w-20 accent-studio-gold" />
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={volume}
+              onChange={handleVolumeChange}
+              aria-label="音量"
+              className="h-1 w-20 accent-studio-gold"
+            />
           </div>
         </div>
       </div>
@@ -228,15 +284,15 @@ export function GlobalPlayer() {
               <div className="text-sm font-semibold">播放队列</div>
               {contextTitle ? <div className="text-xs text-muted-foreground">{contextTitle}</div> : null}
             </div>
-            <Button variant="ghost" size="icon-sm" onClick={() => store.setQueueOpen(false)}>
+            <Button variant="ghost" size="icon-sm" onClick={() => store.setQueueOpen(false)} title="关闭队列">
               <X className="size-4" />
             </Button>
           </div>
           <div className="max-h-[420px] overflow-y-auto p-3">
             <div className="mb-3 rounded-lg border border-studio-gold/25 bg-studio-gold/8 p-3">
               <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">当前播放</div>
-              <div className="mt-2 text-sm font-medium">{currentTrack.title}</div>
-              <div className="text-xs text-muted-foreground">{currentTrack.artist}</div>
+              <div className="mt-2 text-sm font-medium">{currentTrack?.title ?? "尚未选择歌曲"}</div>
+              <div className="text-xs text-muted-foreground">{currentTrack?.artist ?? "从发现页、榜单或资料库开始播放"}</div>
             </div>
             {upcoming[0] ? (
               <div className="mb-3 rounded-lg border border-panel-border bg-black/20 p-3">

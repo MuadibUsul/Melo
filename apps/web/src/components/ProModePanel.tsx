@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { GripVertical, Music2, Plus, Sliders, Trash2 } from "lucide-react";
+import { GripVertical, Loader2, Music2, Plus, Sliders, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { api } from "@/lib/api/client";
 
 export interface ProModeParams {
   lyricsStructure: { section: string; text: string }[];
@@ -22,6 +23,8 @@ export interface ProModeParams {
     key?: string;
   };
 }
+
+export type ProModeTab = "structure" | "reference" | "advanced";
 
 export const DEFAULT_PRO_PARAMS: ProModeParams = {
   lyricsStructure: [
@@ -48,11 +51,15 @@ const SECTIONS = ["intro", "verse", "chorus", "bridge", "outro", "solo", "pre-ch
 export function ProModePanel({
   value,
   onChange,
+  initialTab = "structure",
 }: {
   value: ProModeParams;
   onChange: (next: ProModeParams) => void;
+  initialTab?: ProModeTab;
 }) {
-  const [activeTab, setActiveTab] = useState<"structure" | "reference" | "advanced">("structure");
+  const [activeTab, setActiveTab] = useState<ProModeTab>(initialTab);
+  const [uploading, setUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
 
   function updateStructure(index: number, field: "section" | "text", val: string) {
     const next = [...value.lyricsStructure];
@@ -79,13 +86,48 @@ export function ProModePanel({
     });
   }
 
+  async function uploadReferenceAudio(file: File | undefined) {
+    if (!file) return;
+    setUploading(true);
+    setUploadMessage(null);
+    try {
+      const contentType = file.type || "audio/mpeg";
+      const prepared = await api.post<{
+        assetId: string;
+        uploadUrl: string;
+        method: "PUT";
+        headers: Record<string, string>;
+      }>("/assets/upload-url", {
+        filename: file.name,
+        contentType,
+        sizeBytes: file.size,
+        usage: "reference_audio",
+      });
+
+      const uploadResponse = await fetch(prepared.uploadUrl, {
+        method: prepared.method,
+        headers: prepared.headers,
+        body: file,
+      });
+      if (!uploadResponse.ok) throw new Error("上传参考音频失败");
+
+      const playback = await api.get<{ url: string }>(`/assets/${prepared.assetId}/play`);
+      onChange({ ...value, referenceAudioUrl: playback.url });
+      setUploadMessage("参考音频已上传，并已填入当前创作。");
+    } catch (error) {
+      setUploadMessage(error instanceof Error ? error.message : "上传参考音频失败");
+    } finally {
+      setUploading(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex gap-2 border-b border-panel-border pb-3">
         {[
-          { key: "structure" as const, label: "\u6b4c\u8bcd\u7ed3\u6784", icon: GripVertical },
-          { key: "reference" as const, label: "\u53c2\u8003\u97f3\u9891", icon: Music2 },
-          { key: "advanced" as const, label: "\u9ad8\u7ea7\u53c2\u6570", icon: Sliders },
+          { key: "structure" as const, label: "歌词结构", icon: GripVertical },
+          { key: "reference" as const, label: "参考音频", icon: Music2 },
+          { key: "advanced" as const, label: "高级参数", icon: Sliders },
         ].map((tab) => (
           <Button
             key={tab.key}
@@ -102,9 +144,7 @@ export function ProModePanel({
       {activeTab === "structure" && (
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground">
-            {
-              "\u6309 [verse] / [chorus] / [bridge] \u7b49\u6bb5\u843d\u7ed3\u6784\u7ec4\u7ec7\u6b4c\u8bcd\uff0cAI \u4f1a\u6309\u987a\u5e8f\u751f\u6210\u5bf9\u5e94\u6bb5\u843d\u3002"
-            }
+            按 [verse] / [chorus] / [bridge] 等段落结构组织歌词，Melo 会按顺序生成对应段落。
           </p>
           {value.lyricsStructure.map((sec, i) => (
             <div key={i} className="flex gap-2 rounded-lg border border-panel-border bg-black/20 p-2">
@@ -122,7 +162,7 @@ export function ProModePanel({
               </Select>
               <Textarea
                 className="min-h-[40px] flex-1"
-                placeholder="\u8f93\u5165\u8be5\u6bb5\u6b4c\u8bcd..."
+                placeholder="输入该段歌词..."
                 value={sec.text}
                 onChange={(e) => updateStructure(i, "text", e.target.value)}
                 rows={2}
@@ -132,13 +172,14 @@ export function ProModePanel({
                 size="icon-sm"
                 onClick={() => removeSection(i)}
                 disabled={value.lyricsStructure.length <= 1}
+                aria-label="删除段落"
               >
                 <Trash2 className="size-3.5 text-destructive" />
               </Button>
             </div>
           ))}
           <Button variant="outline" size="sm" onClick={addSection}>
-            <Plus className="size-4" /> {"\u6dfb\u52a0\u6bb5\u843d"}
+            <Plus className="size-4" /> 添加段落
           </Button>
         </div>
       )}
@@ -146,15 +187,36 @@ export function ProModePanel({
       {activeTab === "reference" && (
         <div className="space-y-4">
           <p className="text-xs text-muted-foreground">
-            {
-              "\u4e0a\u4f20\u53c2\u8003\u97f3\u9891\u4f5c\u4e3a\u98ce\u683c\u6216\u65cb\u5f8b\u53c2\u8003\uff08Cover \u6a21\u5f0f\uff09\u3002\u652f\u6301 mp3 / wav\uff0c\u6700\u957f 60 \u79d2\u3002"
-            }
+            上传参考音频作为风格、旋律或翻唱参考。适合延展旧草稿、保留哼唱旋律，或把一段声音转成完整编曲。
           </p>
           <Input
-            placeholder="\u53c2\u8003\u97f3\u9891 URL\uff08\u6216\u4e0a\u4f20\u540e\u586b\u5165\uff09"
+            placeholder="参考音频 URL，或上传后自动填入"
             value={value.referenceAudioUrl ?? ""}
             onChange={(e) => onChange({ ...value, referenceAudioUrl: e.target.value || undefined })}
           />
+          <div className="rounded-lg border border-panel-border bg-black/20 p-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="text-sm font-medium">上传参考音频</div>
+                <div className="mt-1 text-xs text-muted-foreground">支持 mp3、wav、m4a、ogg，最大 50MB。</div>
+              </div>
+              <label className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg border border-panel-border px-3 text-sm transition hover:border-studio-gold/45">
+                {uploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+                {uploading ? "上传中" : "选择文件"}
+                <input
+                  type="file"
+                  accept="audio/*"
+                  className="sr-only"
+                  disabled={uploading}
+                  onChange={(event) => {
+                    void uploadReferenceAudio(event.target.files?.[0]);
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
+            {uploadMessage ? <div className="mt-3 text-xs text-muted-foreground">{uploadMessage}</div> : null}
+          </div>
           <Select
             value={value.referenceAudioType ?? "style"}
             onValueChange={(v) =>
@@ -165,9 +227,9 @@ export function ProModePanel({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="style">{"\u98ce\u683c\u53c2\u8003"}</SelectItem>
-              <SelectItem value="melody">{"\u65cb\u5f8b\u53c2\u8003"}</SelectItem>
-              <SelectItem value="cover">{"Cover \u7ffb\u5531"}</SelectItem>
+              <SelectItem value="style">风格参考</SelectItem>
+              <SelectItem value="melody">旋律参考</SelectItem>
+              <SelectItem value="cover">Cover 翻唱</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -176,11 +238,11 @@ export function ProModePanel({
       {activeTab === "advanced" && (
         <div className="grid gap-4 sm:grid-cols-2">
           {[
-            { label: "\u91c7\u6837\u7387 (Hz)", field: "sampleRate", type: "number", min: 8000, max: 48000, step: 100 },
-            { label: "\u6bd4\u7279\u7387 (bps)", field: "bitrate", type: "number", min: 64000, max: 320000, step: 1000 },
-            { label: "\u6700\u957f\u65f6\u957f (\u79d2)", field: "maxDurationSec", type: "number", min: 30, max: 300, step: 10 },
-            { label: "\u4eba\u58f0\u6df7\u5408 (dB)", field: "vocalLevel", type: "number", min: -12, max: 12, step: 0.5 },
-            { label: "\u4f34\u594f\u6df7\u5408 (dB)", field: "instrumentalLevel", type: "number", min: -12, max: 12, step: 0.5 },
+            { label: "采样率 (Hz)", field: "sampleRate", min: 8000, max: 48000, step: 100 },
+            { label: "比特率 (bps)", field: "bitrate", min: 64000, max: 320000, step: 1000 },
+            { label: "最长时长 (秒)", field: "maxDurationSec", min: 30, max: 300, step: 10 },
+            { label: "人声混合 (dB)", field: "vocalLevel", min: -12, max: 12, step: 0.5 },
+            { label: "伴奏混合 (dB)", field: "instrumentalLevel", min: -12, max: 12, step: 0.5 },
           ].map((f) => (
             <div key={f.field}>
               <label className="mb-1 block text-xs text-muted-foreground">{f.label}</label>
@@ -195,7 +257,7 @@ export function ProModePanel({
             </div>
           ))}
           <div>
-            <label className="mb-1 block text-xs text-muted-foreground">{"\u683c\u5f0f"}</label>
+            <label className="mb-1 block text-xs text-muted-foreground">格式</label>
             <Select value={value.advancedSettings.format} onValueChange={(v) => updateAdvanced("format", v)}>
               <SelectTrigger>
                 <SelectValue />
@@ -207,20 +269,20 @@ export function ProModePanel({
             </Select>
           </div>
           <div>
-            <label className="mb-1 block text-xs text-muted-foreground">{"BPM (\u53ef\u9009)"}</label>
+            <label className="mb-1 block text-xs text-muted-foreground">BPM (可选)</label>
             <Input
               type="number"
               min={40}
               max={240}
-              placeholder="\u81ea\u52a8"
+              placeholder="自动"
               value={value.advancedSettings.tempo ?? ""}
               onChange={(e) => updateAdvanced("tempo", parseInt(e.target.value) || undefined)}
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-muted-foreground">{"\u8c03\u5f0f (\u53ef\u9009)"}</label>
+            <label className="mb-1 block text-xs text-muted-foreground">调式 (可选)</label>
             <Input
-              placeholder="\u81ea\u52a8"
+              placeholder="自动"
               value={value.advancedSettings.key ?? ""}
               onChange={(e) => updateAdvanced("key", e.target.value || undefined)}
             />

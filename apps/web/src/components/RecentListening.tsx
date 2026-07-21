@@ -69,12 +69,13 @@ export function RecentListening() {
                 variant="ghost"
                 size="icon-sm"
                 onClick={() => player.playQueue(items.map(toPlayerTrack), index, { title: "最近收听", href: "/" })}
+                title={`播放 ${track.title}`}
               >
                 <Play className="size-4 text-studio-gold" />
               </Button>
             </div>
             <div className="mt-4 text-xs text-muted-foreground">
-              播放 {track.playCount.toLocaleString()} · 收藏 {track.likeCount.toLocaleString()}
+              播放 {track.playCount.toLocaleString("zh-CN")} / 收藏 {track.likeCount.toLocaleString("zh-CN")}
             </div>
           </div>
         ))}

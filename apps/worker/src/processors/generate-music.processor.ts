@@ -1,6 +1,6 @@
 import type { Job } from "bullmq";
 import type { PrismaClient } from "@prisma/client";
-import type { MiniMaxClient } from "@music/sdk-minimax";
+import { MiniMaxError, type MiniMaxClient } from "@music/sdk-minimax";
 import type { AppEnv } from "@music/config";
 import {
   PutObjectCommand,
@@ -8,6 +8,7 @@ import {
   HeadBucketCommand,
   CreateBucketCommand,
 } from "@aws-sdk/client-s3";
+import { clearRedisHold, refundRedisHold } from "./credit-cache";
 
 export interface SharedContext {
   prisma: PrismaClient;
@@ -41,6 +42,7 @@ export async function generateMusicProcessor(
       prompt: params.prompt as string | undefined,
       lyrics: params.lyrics as string | undefined,
       isInstrumental: (params.isInstrumental as boolean) ?? false,
+      outputFormat: "hex",
     });
 
     // Download & store audio if a URL was returned
@@ -167,6 +169,8 @@ async function commitHold(ctx: SharedContext, holdId: string): Promise<void> {
   });
   if (settled) return;
 
+  await clearRedisHold(ctx.redisUrl, holdId);
+
   await ctx.prisma.creditLedger.create({
     data: {
       userId: hold.userId,
@@ -191,6 +195,8 @@ async function refundHold(ctx: SharedContext, holdId: string): Promise<void> {
   });
   if (settled) return;
 
+  await refundRedisHold(ctx.redisUrl, hold.userId, holdId, Math.abs(hold.amount));
+
   await ctx.prisma.creditLedger.create({
     data: {
       userId: hold.userId,
@@ -205,6 +211,9 @@ async function refundHold(ctx: SharedContext, holdId: string): Promise<void> {
 }
 
 function classifyError(err: unknown): string {
+  if (err instanceof MiniMaxError) {
+    return err.kind === "transient" ? "PROVIDER_TRANSIENT" : "PROVIDER_PERMANENT";
+  }
   if (err instanceof Error && err.message.includes("MiniMax")) {
     return "PROVIDER_PERMANENT";
   }

@@ -80,7 +80,7 @@ export function AdminContentPanel() {
     onError: (error) => toast(error instanceof Error ? error.message : "\u64cd\u4f5c\u5931\u8d25", "error"),
   });
 
-  if (isError) return <EmptyState message="\u8bf7\u4f7f\u7528\u7ba1\u7406\u5458\u8d26\u53f7\u767b\u5f55\u3002" />;
+  if (isError) return <EmptyState message="请使用管理员账号登录。" />;
   const items = data?.items ?? [];
   return (
     <AdminTable
@@ -117,7 +117,7 @@ export function AdminUsersPanel() {
     queryFn: () => api.get<Paged<AdminUser>>("/admin/users"),
     retry: 0,
   });
-  if (isError) return <EmptyState message="\u8bf7\u4f7f\u7528\u7ba1\u7406\u5458\u8d26\u53f7\u767b\u5f55\u3002" />;
+  if (isError) return <EmptyState message="请使用管理员账号登录。" />;
   return (
     <AdminTable
       columns={["\u7528\u6237", "\u90ae\u7bb1", "\u89d2\u8272", "\u72b6\u6001", "\u6ce8\u518c\u65f6\u95f4"]}
@@ -142,7 +142,7 @@ export function AdminBillingPanel() {
     queryFn: () => api.get<Paged<AdminSubscription>>("/admin/billing"),
     retry: 0,
   });
-  if (isError) return <EmptyState message="\u8bf7\u4f7f\u7528\u7ba1\u7406\u5458\u8d26\u53f7\u767b\u5f55\u3002" />;
+  if (isError) return <EmptyState message="请使用管理员账号登录。" />;
   return (
     <AdminTable
       columns={["\u7528\u6237", "\u5957\u9910", "\u91d1\u989d", "\u6e20\u9053", "\u72b6\u6001", "\u5230\u671f"]}
@@ -166,7 +166,7 @@ export function AdminCostsPanel() {
     queryFn: () => api.get<CostSummary>("/admin/costs"),
     retry: 0,
   });
-  if (isError) return <EmptyState message="\u8bf7\u4f7f\u7528\u7ba1\u7406\u5458\u8d26\u53f7\u767b\u5f55\u3002" />;
+  if (isError) return <EmptyState message="请使用管理员账号登录。" />;
   const summary = data ?? {
     totalJobs: 0,
     succeededJobs: 0,
